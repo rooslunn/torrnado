@@ -5,28 +5,38 @@ import (
 	"os"
 )
 
+type EnvStore map[string]string
 type Config struct {
-	TopicUrl     string
+	Env         EnvStore 
+	TopicUrl    string
 	StoragePath string
 }
+
+var (
+	EnvVarConfig = []string{TORR_URL, TORR_DB, TORR_USER, TORR_PSWD}
+)
 
 const (
 	ErrorEnvNotSet = "can't resolve %s env var"
 )
 
+const (
+	TORR_URL = "TORR_URL"
+	TORR_DB = "TORR_DB"
+	TORR_USER = "TORR_USER"
+	TORR_PSWD = "TORR_PSWD"
+)
+
 func MustConfig() (*Config, error) {
-	url := os.Getenv("TORR_URL")
-	if url == "" {
-		return nil, fmt.Errorf(ErrorEnvNotSet, "TORR_URL")
+	envStore := make(EnvStore, len(EnvVarConfig)) 
+
+	for _, envVar := range EnvVarConfig {
+		value := os.Getenv(envVar)
+		if value == "" {
+			return nil, fmt.Errorf(ErrorEnvNotSet, envVar)
+		}
+		envStore[envVar] = value
 	}
 
-	db := os.Getenv("TORR_DB")
-	if db == "" {
-		return nil, fmt.Errorf(ErrorEnvNotSet, "TORR_DB")
-	}
-
-	return &Config{
-		url,
-		db,
-	}, nil
+	return &Config{Env: envStore}, nil
 }

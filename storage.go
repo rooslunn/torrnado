@@ -22,14 +22,15 @@ type LiteStorage struct {
 const DB_OPTIONS = "?cache=shared"
 
 func MustSaveToLite(path string) (*LiteStorage, error) {
-	const op = "storage.sqlite.new"
+	const op = "storage.sqlite.connect"
 
 	db, err := sql.Open("sqlite3", path + DB_OPTIONS)
 	if err != nil {
 		return nil, Operror(op, err)
 	}
 
-	stmt, err := db.Prepare("select title from topics limit 1")
+	// stmt, err := db.Prepare("select title from topics limit 1")
+	stmt, err := db.Prepare("select 1")
 	if err != nil {
 		return nil, Operror(op, err)
 	}

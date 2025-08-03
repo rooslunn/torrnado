@@ -2,4 +2,4 @@ module github.com/rooslunn/torrnado
 
 go 1.24.5
 
-require github.com/mattn/go-sqlite3 v1.14.30 // indirect
+require github.com/mattn/go-sqlite3 v1.14.30
