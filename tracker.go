@@ -2,9 +2,12 @@ package torrnado
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -99,15 +102,49 @@ func (rt *RuTracker) login(username, password string) error {
 	return nil
 }
 
-func (t *RuTracker) logout() error {
-	logout := logoutFormData()
-	req, _ := http.NewRequest("POST", RT_LOGIN_URL, logout)
-	req.Header.Set("content-type", "application/x-www-form-urlencoded")
+func (rt *RuTracker) SaveTopicFile(url, filepath string) (int64, error) {
+	const op = "tracker.save_topic_stream"
 
-	client := &http.Client{}
-	_, err := client.Do(req)
-	return err
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return  0, err
+	}
+
+	client := &http.Client{Jar: *rt.SessionCookies}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return  0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("%s: bad status code: %s", op, resp.Status)
+	}
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return 0, fmt.Errorf("%s: error creating file: %v", op, err)
+	}
+	defer out.Close()
+
+	n, err := io.Copy(out, resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("%s: error copying data: %v", op, err)
+	}
+
+	return  n, nil
 }
+
+// func (t *RuTracker) logout() error {
+// 	logout := logoutFormData()
+// 	req, _ := http.NewRequest("POST", RT_LOGIN_URL, logout)
+// 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
+
+// 	client := &http.Client{}
+// 	_, err := client.Do(req)
+// 	return err
+// }
 
 func initCookieJar(rt *RuTracker) (*cookiejar.Jar, error) {
 	jar, err := cookiejar.New(nil)
