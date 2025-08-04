@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -39,8 +40,8 @@ func MustSaveToLite(path string) (*LiteStorage, error) {
 		create table if not exists topics (
 			id integer primary key,
 			topic_id integer not null,
-			url text,
 			html_source text,
+			time_taken_ms int,
 			created_at text,
 			fetched_at text 
 		);
@@ -58,14 +59,30 @@ func MustSaveToLite(path string) (*LiteStorage, error) {
 	return &LiteStorage{db, "ready"}, nil
 }
 
-func (s *LiteStorage) SaveHTML(topic_id int, html string) error {
-	stmt, err := s.db.Prepare("update topics set html_source = ?, fetched_at = ? where topic_id = ?")
+func (s *LiteStorage) hygienic() (int, error) {
+	// delete from topics where fetched_at is null;
+	// select topic_id, max(fetched_at) from topics group by topic_id order by 2 limit 1;
+	return 0, nil
+}
+
+func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
+
+	stmt, err := s.db.Prepare(`
+		update 
+			topics set html_source = $1, fetched_at = $2, time_taken_ms = $3
+		where 
+			topic_id = $4 and fetched_at is null;
+	`)
+
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(html, ISaidNow(), topic_id)
+	time_taken := time.Since(timeLog).Milliseconds()
+
+	_, err = stmt.Exec(html, ISaidNow(), time_taken, topic_id)
+
 	return err
 }
 

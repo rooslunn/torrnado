@@ -102,14 +102,15 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 				defer func() { <-sem }()
 
 				log.Info("fetching topic", "id", topic_id)
+				startEra := time.Now()
 
 				topicHtml, err := rt.FetchTopic(url_fmt, topic_id)
+
 				if errors.Is(err, torrnado.ErrClaudfareWarden) {
 					results <- result{topic_id, err}
 					log.Warn("warden watching. time to sleep")
 					time.Sleep(torrnado.AccidentalPeriodSec(13, 23))
 					return nil
-					// return err
 				}
 
 				if err != nil {
@@ -118,8 +119,9 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 					return err
 				}
 
-				// [ ]: add size and fetching time
-				err = db.SaveHTML(topic_id, topicHtml)
+				// [x] todo: add size and fetching time
+				// [ ] todo: clean table (delete duplicates, nullify html_source, fetched_at) 
+				err = db.SaveEffort(topic_id, topicHtml, startEra)
 				if err != nil {
 					results <- result{topic_id, err}
 					log.Error("fetching error", "err", err)
@@ -129,7 +131,7 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 				results <- result{topic_id, nil}
 				log.Info("fetched successfully", "topic_id", topic_id)
 
-				sleepFor := torrnado.AccidentalPeriodSec(1, 4)
+				sleepFor := torrnado.AccidentalPeriodSec(3, 11)
 				log.Info("sleeping for", "sec", sleepFor)
 				time.Sleep(sleepFor)
 
