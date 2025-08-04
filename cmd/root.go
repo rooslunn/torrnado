@@ -1,14 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"log/slog"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/rooslunn/torrnado"
+	"golang.org/x/sync/errgroup"
 )
 
-type Command interface {
-	Execute(log *slog.Logger) error
+type result struct {
+	topic_id int
+	Error    error
 }
 
 type rootCmd struct{}
@@ -17,8 +25,12 @@ const (
 	OUT_PATH = ""
 )
 
-func (c rootCmd) Execute(log *slog.Logger) error {
-	log.Info("Starting root command")
+func RootCmd() *rootCmd {
+	return &rootCmd{}
+}
+
+func (c *rootCmd) Execute(log *slog.Logger) error {
+	log.Info("Executing root command")
 
 	// config
 	config, err := torrnado.MustConfig()
@@ -29,32 +41,123 @@ func (c rootCmd) Execute(log *slog.Logger) error {
 	log.Info("config loaded", "url", config.Env[torrnado.TORR_URL], "db", config.Env[torrnado.TORR_DB])
 
 	// db
-	db, err := torrnado.MustSaveToLite(config.StoragePath)
+	db, err := torrnado.MustSaveToLite(config.Env[torrnado.TORR_DB])
 	if err != nil {
 		log.Error(err.Error())
 		return err
 	}
 	log.Info("DB connected", "status", db.Status)
 
-	// fetch topic to file
+	// topic source
 	rt, err := torrnado.NeedSource(config)
 	if err != nil {
 		log.Error(err.Error())
 		return err
 	}
 	log.Info("loggged to tracker", "status", rt.Status)
-	// 5448425, Fight Club
-	url := fmt.Sprintf(config.Env[torrnado.TORR_URL], "5448425")
-	filepath := "5448425.html"
-	nBytes, err := rt.SaveTopicFile(url, filepath)
+
+	// concurrent fetching
+
+	maxConcurrency, err := strconv.Atoi(config.Env[torrnado.MAX_CONCURRENCY])
 	if err != nil {
-		return err 
+		return err
 	}
-	log.Info("saved topic to file", "topic", url, "file", filepath, "size", nBytes)
 
-	// parse Topic
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// finalization
+	// handle ctrc+c/z (SIGINT, SIGTERM)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigChan
+		log.Info("Received signal: %v. Initiating graceful shutdown...\n", "signal", sig)
+		cancel()
+	}()
+
+	topics := torrnado.ConjureTopicPlan(5448425, 100)
+	err = db.SaveFetchPlan(topics)
+	if err != nil {
+		log.Error("error saving fetching plan", "err", err)
+		return err
+	}
+	log.Info("fetching plan is ready")
+
+	g, gCtx := errgroup.WithContext(ctx)
+	results := make(chan result, len(topics))
+	sem := make(chan struct{}, maxConcurrency)
+
+	url_fmt := config.Env[torrnado.TORR_URL]
+
+	for topic_id := range topics {
+
+		topic_id := topic_id
+
+		g.Go(func() error {
+			select {
+			case <-gCtx.Done():
+				log.Info("cancellation detected, skipping...", "topic", topic_id)
+				return gCtx.Err()
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+
+				log.Info("fetching topic", "id", topic_id)
+
+				topicHtml, err := rt.FetchTopic(url_fmt, topic_id)
+				if errors.Is(err, torrnado.ErrClaudfareWarden) {
+					results <- result{topic_id, err}
+					log.Warn("warden watching. time to sleep")
+					time.Sleep(torrnado.AccidentalPeriodSec(13, 23))
+					return nil
+					// return err
+				}
+
+				if err != nil {
+					results <- result{topic_id, err}
+					log.Error("fetching error", "err", err)
+					return err
+				}
+
+				// [ ]: add size and fetching time
+				err = db.SaveHTML(topic_id, topicHtml)
+				if err != nil {
+					results <- result{topic_id, err}
+					log.Error("fetching error", "err", err)
+					return err
+				}
+
+				results <- result{topic_id, nil}
+				log.Info("fetched successfully", "topic_id", topic_id)
+
+				sleepFor := torrnado.AccidentalPeriodSec(1, 4)
+				log.Info("sleeping for", "sec", sleepFor)
+				time.Sleep(sleepFor)
+
+				return nil
+			}
+		})
+	}
+
+	go func() {
+		g.Wait()
+		close(results)
+	}()
+
+	for result := range results {
+		if result.Error != nil {
+			log.Error("error", "topic_id", result.topic_id, "err", result.Error)
+		}
+	}
+
+	if err := g.Wait(); err != nil {
+		if err == context.Canceled {
+			log.Info("graceful shutdown completed due to OS signal.")
+		} else {
+			log.Error("operation finished with a non-cancellation error:", "err", err)
+		}
+	} else {
+		log.Info("All URLs fetched successfully!")
+	}
 
 	return nil
 }

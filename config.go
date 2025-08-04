@@ -14,17 +14,18 @@ type (
 	}
 )
 
-var EnvVarConfig = []string{TORR_URL, TORR_DB, TORR_USER, TORR_PSWD}
+var EnvVarConfig = []string{TORR_URL, TORR_DB, TORR_USER, TORR_PSWD, MAX_CONCURRENCY}
 
 const (
 	ErrorEnvNotSet = "can't resolve %s env var"
 )
 
 const (
-	TORR_URL  = "TORR_URL"
-	TORR_DB   = "TORR_DB"
-	TORR_USER = "TORR_USER"
-	TORR_PSWD = "TORR_PSWD"
+	TORR_URL        = "TORR_URL"
+	TORR_DB         = "TORR_DB"
+	TORR_USER       = "TORR_USER"
+	TORR_PSWD       = "TORR_PSWD"
+	MAX_CONCURRENCY = "MAX_CONCURRENCY"
 )
 
 func MustConfig() (*Config, error) {

@@ -7,16 +7,23 @@ import (
 	"os"
 )
 
-func main () {
-	log := setupLogger(os.Stdout)
-	goodbyeIfErr(rootCmd{}, log)
+type Command interface {
+	Execute(log *slog.Logger) error
 }
 
-func setupLogger(out io.Writer) *slog.Logger {
+func main () {
+	log := setupSnitch(os.Stdout)
+	goodbyeIfFuckedUp(
+		RootCmd(), 
+		log,
+	)
+}
+
+func setupSnitch(out io.Writer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelInfo}))
 }
 
-func goodbyeIfErr(command Command, log *slog.Logger) {
+func goodbyeIfFuckedUp(command Command, log *slog.Logger) {
 	err := command.Execute(log)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

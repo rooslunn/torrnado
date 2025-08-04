@@ -3,6 +3,7 @@ package torrnado
 import (
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 func Operror(op string, err error) error {
@@ -16,7 +17,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-func RandStringBytesMaskImpr(n int) string {
+func ConjureFluckyVerse(n int) string {
 	b := make([]byte, n)
 	for i, cache, remain := n-1, rand.Int63(), letterIdxMax; i >= 0; {
 		if remain == 0 {
@@ -31,4 +32,31 @@ func RandStringBytesMaskImpr(n int) string {
 	}
 
 	return string(b)
+}
+
+func ISaidNow() string {
+	customFormat := "02-01-2006 15:04:05"
+	return time.Now().Format(customFormat)
+	// return time.Now().Format(time.RFC3339)
+}
+
+func ConjureTopicPlan(start, count int) TopicPlan {
+	plan := make(TopicPlan, count)
+	for i := range count {
+		plan[start+i] = ISaidNow()
+	}
+	return plan
+}
+
+func AccidentalPeriodSec(min, max int) time.Duration {
+	randomSeconds := rand.Intn(max-min) + min
+	return time.Duration(randomSeconds) * time.Second
+}
+
+func PlotDeal[T, M any](s []T, f func(T) M) []M {
+	result := make([]M, len(s))
+	for i, v := range s {
+		result[i] = f(v)
+	}
+	return result
 }

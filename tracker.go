@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -48,7 +47,10 @@ const (
 	// RT_SEARCH_URL     = "https://rutracker.org/forum/tracker.php"
 )
 
-var ErrNotAuthenticated = errors.New("user is not authenicated. Status is NOT 302")
+var (
+	ErrNotAuthenticated = errors.New("user is not authenicated. Status is NOT 302")
+	ErrClaudfareWarden = errors.New("somebody is watching us...")
+)
 
 // ErrConfigPathMissing    = errors.New("config path is missing")
 // ErrConfigFileNotExist   = errors.New("config file not found")
@@ -102,49 +104,41 @@ func (rt *RuTracker) login(username, password string) error {
 	return nil
 }
 
-func (rt *RuTracker) SaveTopicFile(url, filepath string) (int64, error) {
-	const op = "tracker.save_topic_stream"
+func (rt *RuTracker) FetchTopic(url_fmt string, topic_id int) (string, error) {
+	const op = "tracker.fetch_topic"
+
+	url := fmt.Sprintf(url_fmt, topic_id)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return  0, err
+		return "", err
 	}
 
 	client := &http.Client{Jar: *rt.SessionCookies}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return  0, err
+		return "", err
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == 521 {
+		return "", ErrClaudfareWarden 
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("%s: bad status code: %s", op, resp.Status)
+		return "", fmt.Errorf("%s: bad status code: %s", op, resp.Status)
 	}
 
-	out, err := os.Create(filepath)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("%s: error creating file: %v", op, err)
-	}
-	defer out.Close()
-
-	n, err := io.Copy(out, resp.Body)
-	if err != nil {
-		return 0, fmt.Errorf("%s: error copying data: %v", op, err)
+		return "", fmt.Errorf("%s: error reading response body: %v", op, err)
 	}
 
-	return  n, nil
+	bodyString := string(bodyBytes)
+
+	return bodyString, nil
 }
-
-// func (t *RuTracker) logout() error {
-// 	logout := logoutFormData()
-// 	req, _ := http.NewRequest("POST", RT_LOGIN_URL, logout)
-// 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
-
-// 	client := &http.Client{}
-// 	_, err := client.Do(req)
-// 	return err
-// }
 
 func initCookieJar(rt *RuTracker) (*cookiejar.Jar, error) {
 	jar, err := cookiejar.New(nil)
@@ -155,7 +149,7 @@ func initCookieJar(rt *RuTracker) (*cookiejar.Jar, error) {
 	var cookies []*http.Cookie
 	cookie := &http.Cookie{
 		Name:   "bb_guid",
-		Value:  RandStringBytesMaskImpr(12),
+		Value:  ConjureFluckyVerse(12),
 		Path:   "/forum/",
 		Domain: ".rutracker.org",
 	}
@@ -189,8 +183,18 @@ func loginFormData(username, password string) *strings.Reader {
 	return strings.NewReader(form.Encode())
 }
 
-func logoutFormData() *strings.Reader {
-	form := url.Values{}
-	form.Add("logout", "1")
-	return strings.NewReader(form.Encode())
-}
+// func logoutFormData() *strings.Reader {
+// 	form := url.Values{}
+// 	form.Add("logout", "1")
+// 	return strings.NewReader(form.Encode())
+// }
+
+// func (t *RuTracker) logout() error {
+// 	logout := logoutFormData()
+// 	req, _ := http.NewRequest("POST", RT_LOGIN_URL, logout)
+// 	req.Header.Set("content-type", "application/x-www-form-urlencoded")
+
+// 	client := &http.Client{}
+// 	_, err := client.Do(req)
+// 	return err
+// }
