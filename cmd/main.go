@@ -19,7 +19,7 @@ func main() {
 	log := setupSnitch(os.Stdout)
 
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "you forget command name (fetch, export, etc.)")
+		fmt.Fprintln(os.Stderr, "you forgot command nick (fetch, export, clean)")
 		os.Exit(2)
 	}
 
@@ -32,6 +32,8 @@ func main() {
 		command = new(fetchCmd)
 	case "export":
 		command = new(exportCmd)
+	case "clean":
+		command = new(cleanCmd)
 	default:
 	}
 

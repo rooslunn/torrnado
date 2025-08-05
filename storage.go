@@ -3,6 +3,8 @@ package torrnado
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,13 +61,34 @@ func MustSaveToLite(path string) (*LiteStorage, error) {
 	return &LiteStorage{db, "ready"}, nil
 }
 
-func (s *LiteStorage) hygienic() (int, error) {
-	// select count(id) from topics;
-	// delete from topics where (fetched_at is null) or (html_source is null);
-	// select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit t; 
-	// delete from topics where fetched_at < last_fetched_at;
-	// delete from topics where fetched_at < (select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit 1);
-	return 0, nil
+func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
+	v_before, err := s.retrieveField(`
+		select count(id) from topics;
+	`)
+	if err != nil {
+		return 0, err
+	}
+	log.Info("records before clean", "count", v_before)
+
+	err = s.execSQL(`
+		delete from topics where fetched_at < (select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit 1);
+	`)
+	if err != nil {
+		return 0, err
+	}
+	log.Info("cleaning")
+
+	v_after, err := s.retrieveField(`
+		select count(id) from topics;
+	`)
+	if err != nil {
+		return 0, err
+	}
+
+	v_before_i, _ := strconv.Atoi(v_before)
+	v_after_i, _ := strconv.Atoi(v_after)
+
+	return v_before_i - v_after_i, nil
 }
 
 func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
@@ -87,6 +110,26 @@ func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) e
 	_, err = stmt.Exec(html, ISaidNow(), time_taken, topic_id)
 
 	return err
+}
+
+func (s *LiteStorage) execSQL(sql string) error {
+	stmt, err := s.db.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec()
+	return err
+}
+
+func (s *LiteStorage) retrieveField(sql string) (string, error) {
+	var value string
+	err := s.db.QueryRow(sql).Scan(&value)
+	if err != nil {
+		return "", err
+	}
+	return value, nil
 }
 
 func (s *LiteStorage) GetHTML(topic_id int) (string, error) {
