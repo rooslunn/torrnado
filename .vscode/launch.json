@@ -13,7 +13,7 @@
             "program": "${workspaceFolder}/cmd",
             "envFile": "${workspaceFolder}/.env",
             "env": {},
-            "args": [],
+            "args": ["export", "5448425", "5448425.html"],
         }
     ]
 }

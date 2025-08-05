@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -19,18 +20,33 @@ type result struct {
 	Error    error
 }
 
-type rootCmd struct{}
+type fetchCmd struct{}
 
 const (
-	OUT_PATH = ""
+	OUT_PATH            = ""
+	DEFAULT_BATCH_SIZE = 100
 )
 
-func RootCmd() *rootCmd {
-	return &rootCmd{}
-}
+func (c fetchCmd) execute(log *slog.Logger, args []string) error {
+	log.Info("executing fetch command", "args", args)
 
-func (c *rootCmd) Execute(log *slog.Logger) error {
-	log.Info("Executing root command")
+	if len(args) == 0 {
+		c.expoTrick()
+		return ErrDefectiveArgs
+	}
+
+	from_topic_id, err := strconv.Atoi(args[0])
+	if err != nil {
+		return ErrDefectiveArgs
+	}
+
+	topic_batch := DEFAULT_BATCH_SIZE
+	if len(args) == 2 {
+		topic_batch, err = strconv.Atoi(args[1])
+		if err != nil {
+			return ErrDefectiveArgs
+		}
+	}
 
 	// config
 	config, err := torrnado.MustConfig()
@@ -75,7 +91,8 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 		cancel()
 	}()
 
-	topics := torrnado.ConjureTopicPlan(5448425, 100)
+	// 5448425
+	topics := torrnado.ConjureTopicPlan(from_topic_id, topic_batch)
 	err = db.SaveFetchPlan(topics)
 	if err != nil {
 		log.Error("error saving fetching plan", "err", err)
@@ -119,8 +136,6 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 					return err
 				}
 
-				// [x] todo: add size and fetching time
-				// [ ] todo: clean table (delete duplicates, nullify html_source, fetched_at) 
 				err = db.SaveEffort(topic_id, topicHtml, startEra)
 				if err != nil {
 					results <- result{topic_id, err}
@@ -162,4 +177,8 @@ func (c *rootCmd) Execute(log *slog.Logger) error {
 	}
 
 	return nil
+}
+
+func (c fetchCmd) expoTrick() {
+	fmt.Println("Usage: torrnado fetch <from topic_id> [count]")
 }
