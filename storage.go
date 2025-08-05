@@ -60,8 +60,11 @@ func MustSaveToLite(path string) (*LiteStorage, error) {
 }
 
 func (s *LiteStorage) hygienic() (int, error) {
-	// delete from topics where fetched_at is null;
-	// select topic_id, max(fetched_at) from topics group by topic_id order by 2 limit 1;
+	// select count(id) from topics;
+	// delete from topics where (fetched_at is null) or (html_source is null);
+	// select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit t; 
+	// delete from topics where fetched_at < last_fetched_at;
+	// delete from topics where fetched_at < (select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit 1);
 	return 0, nil
 }
 
