@@ -27,6 +27,7 @@ const (
 	DEFAULT_BATCH_SIZE = 100
 )
 
+// [ ] todo: devide and conquer
 func (c fetchCmd) execute(log *slog.Logger, args []string) error {
 	log.Info("executing fetch command", "args", args)
 
