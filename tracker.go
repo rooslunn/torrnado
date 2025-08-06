@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type authCoookes []*http.Cookie
+// type authCoookes []*http.Cookie
 
 type HttpMiddleware struct {
 	rt         *RuTracker
@@ -27,7 +27,7 @@ func (m *HttpMiddleware) RoundTrip(req *http.Request) (*http.Response, error) {
 		m.CookiesJar.SetCookies(m.rt.RtRootUrl, resp.Cookies())
 		m.rt.SessionCookies = &m.CookiesJar
 		m.rt.ready = true
-		m.rt.Status = "ready"
+		m.rt.Status = "logged in"
 	}
 
 	return resp, err
@@ -49,7 +49,7 @@ const (
 
 var (
 	ErrNotAuthenticated = errors.New("user is not authenicated. Status is NOT 302")
-	ErrClaudfareWarden = errors.New("somebody is watching us...")
+	ErrClaudfareWarden = errors.New("somebody is watching us")
 )
 
 // ErrConfigPathMissing    = errors.New("config path is missing")
@@ -127,7 +127,7 @@ func (rt *RuTracker) FetchTopic(url_fmt string, topic_id int) (string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%s: bad status code: %s", op, resp.Status)
+		return "", fmt.Errorf("%s: bad status code: %s; url=%s", op, resp.Status, url)
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
