@@ -20,15 +20,14 @@ type result struct {
 	Error    error
 }
 
-type fetchCmd struct{}
+type trackerCmd struct{}
 
 const (
-	OUT_PATH            = ""
+	OUT_PATH           = ""
 	DEFAULT_BATCH_SIZE = 100
 )
 
-// [ ] todo: devide and conquer
-func (c fetchCmd) execute(log *slog.Logger, args []string) error {
+func (c trackerCmd) execute(log *slog.Logger, args []string) error {
 	log.Info("executing fetch command", "args", args)
 
 	if len(args) == 0 {
@@ -36,6 +35,15 @@ func (c fetchCmd) execute(log *slog.Logger, args []string) error {
 		return ErrDefectiveArgs
 	}
 
+	if isSubcommand(args[0], "fetch") {
+		return c.fetch(log, args[1:])
+	}
+
+	return ErrUnknownSubCommand
+}
+
+// [ ] todo: devide and conquer
+func (c trackerCmd) fetch(log *slog.Logger, args []string) error {
 	from_topic_id, err := strconv.Atoi(args[0])
 	if err != nil {
 		return ErrDefectiveArgs
@@ -58,7 +66,7 @@ func (c fetchCmd) execute(log *slog.Logger, args []string) error {
 	log.Info("config loaded", "url", config.Env[torrnado.TORR_URL], "db", config.Env[torrnado.TORR_DB])
 
 	// db
-	db, err := torrnado.MustSaveToLite(config.Env[torrnado.TORR_DB])
+	db, err := torrnado.MustHaveStorage(config.Env[torrnado.TORR_DB])
 	if err != nil {
 		log.Error(err.Error())
 		return err
@@ -180,6 +188,6 @@ func (c fetchCmd) execute(log *slog.Logger, args []string) error {
 	return nil
 }
 
-func (c fetchCmd) expoTrick() {
+func (c trackerCmd) expoTrick() {
 	fmt.Println("Usage: torrnado fetch <from topic_id> [count]")
 }

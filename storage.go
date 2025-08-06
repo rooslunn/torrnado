@@ -30,7 +30,7 @@ type LiteStorage struct {
 
 const DB_OPTIONS = "?cache=shared"
 
-func MustSaveToLite(path string) (*LiteStorage, error) {
+func MustHaveStorage(path string) (*LiteStorage, error) {
 	const op = "storage.sqlite.connect"
 
 	db, err := sql.Open("sqlite3", path+DB_OPTIONS)
@@ -92,14 +92,12 @@ func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
 }
 
 func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
-
 	stmt, err := s.db.Prepare(`
 		update 
 			topics set html_source = $1, fetched_at = $2, time_taken_ms = $3
 		where 
 			topic_id = $4 and fetched_at is null;
 	`)
-
 	if err != nil {
 		return err
 	}
