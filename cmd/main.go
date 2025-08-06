@@ -10,7 +10,7 @@ import (
 )
 
 type Command interface {
-	execute(log *slog.Logger, args []string) error
+	execute(args []string) error
 	expoTrick()
 }
 
@@ -32,11 +32,10 @@ func main() {
 
 	commandBrand := os.Args[1]
 
-
 	if strings.HasPrefix(commandBrand, "tracker:") {
-		command = new(trackerCmd)
+		command = trackerCmd{log}
 	} else if strings.HasPrefix(commandBrand, "db:") {
-		command = new(dbCmd)
+		command = dbCmd{log}
 	} else {
 		fmt.Fprintln(os.Stderr, ErrUnknownCommand)
 		os.Exit(1)
@@ -44,7 +43,6 @@ func main() {
 
 	goodbyeIfFuckedUp(
 		command,
-		log,
 		os.Args[1:],
 	)
 }
@@ -53,8 +51,8 @@ func setupSnitch(out io.Writer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelInfo}))
 }
 
-func goodbyeIfFuckedUp(command Command, log *slog.Logger, args []string) {
-	err := command.execute(log, args)
+func goodbyeIfFuckedUp(command Command, args []string) {
+	err := command.execute(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -17,7 +17,7 @@ type (
 var EnvVarConfig = []string{TORR_URL, TORR_DB, TORR_USER, TORR_PSWD, MAX_CONCURRENCY}
 
 const (
-	ErrorEnvNotSet = "can't resolve %s env var"
+	ErrEnvNotSet = "can't resolve %s env var"
 )
 
 const (
@@ -34,7 +34,7 @@ func MustConfig() (*Config, error) {
 	for _, envVar := range EnvVarConfig {
 		value := os.Getenv(envVar)
 		if value == "" {
-			return nil, fmt.Errorf(ErrorEnvNotSet, envVar)
+			return nil, fmt.Errorf(ErrEnvNotSet, envVar)
 		}
 		envStore[envVar] = value
 	}

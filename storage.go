@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 	"time"
 
@@ -38,57 +37,60 @@ func MustHaveStorage(path string) (*LiteStorage, error) {
 		return nil, Operror(op, err)
 	}
 
-	stmt, err := db.Prepare(`
+	return &LiteStorage{db, "ready"}, nil
+}
+
+func (s *LiteStorage) Migrate(log *slog.Logger) error {
+
+	const op = "storage.migrate"
+
+	var ddl []string
+	
+	ddl = append(ddl, "drop table if exists topics")
+
+	ddl = append(ddl, `
 		create table if not exists topics (
 			id integer primary key,
 			topic_id integer not null,
 			html_source text,
+			html_len int,
 			time_taken_ms int,
 			created_at text,
 			fetched_at text 
 		);
-		create index idx_topic_id on topics(topic_id);
 	`)
-	if err != nil {
-		return nil, Operror(op, err)
-	}
 
-	_, err = stmt.Exec()
-	if err != nil {
-		return nil, Operror(op, err)
-	}
+	ddl = append(ddl, "create index idx_topic_id on topics(topic_id);")
+	ddl = append(ddl, "create index idx_html_len on topics(html_len);")
 
-	return &LiteStorage{db, "ready"}, nil
+	var stmt *sql.Stmt
+	var err error
+
+	for _, ddl_sql := range ddl {
+		stmt, err = s.db.Prepare(ddl_sql)
+		if err != nil {
+			return Operror(op, err)
+		}
+		_, err = stmt.Exec()
+		if err != nil {
+			return Operror(op, err)
+		}
+	}
+	defer stmt.Close()
+
+	return nil
+
 }
 
 func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
-	v_before, err := s.retrieveField(`
-		select count(id) from topics;
-	`)
-	if err != nil {
-		return 0, err
-	}
-	log.Info("records before clean", "count", v_before)
 
-	err = s.execSQL(`
+	log.Info("started cleaning")
+
+	rows_affected, err := s.execSQL(`
 		delete from topics where fetched_at < (select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit 1);
 	`)
-	if err != nil {
-		return 0, err
-	}
-	log.Info("cleaning")
 
-	v_after, err := s.retrieveField(`
-		select count(id) from topics;
-	`)
-	if err != nil {
-		return 0, err
-	}
-
-	v_before_i, _ := strconv.Atoi(v_before)
-	v_after_i, _ := strconv.Atoi(v_after)
-
-	return v_before_i - v_after_i, nil
+	return int(rows_affected), err 
 }
 
 func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
@@ -110,15 +112,21 @@ func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) e
 	return err
 }
 
-func (s *LiteStorage) execSQL(sql string) error {
+func (s *LiteStorage) execSQL(sql string) (changes int64, err error) {
 	stmt, err := s.db.Prepare(sql)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec()
-	return err
+	r, err := stmt.Exec()
+
+	rows_affected, err := r.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rows_affected, err
 }
 
 func (s *LiteStorage) retrieveField(sql string) (string, error) {
