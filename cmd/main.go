@@ -71,6 +71,19 @@ func pingPong(log *slog.Logger) int {
 		log.Info("config", k, v)
 	}
 
+	// check db path
+	dbfile := cfg.Env[torrnado.TORR_DB]
+	stat, err := os.Stat(dbfile)
+	if errors.Is(err, os.ErrNotExist) {
+		log.Error("db file doesn't live", "file", dbfile)
+		return 1
+	} else {
+	if stat.IsDir() {
+		log.Error("path is directory")
+		return 1
+	}
+	}
+
 	log.Info("checking db contact...")
 	_, err = joinDb()
 	if err != nil {
@@ -79,6 +92,7 @@ func pingPong(log *slog.Logger) int {
 	}
 	log.Info("db is available")
 
+	// [ ] todo: check TORR_URL alive
 	return 0
 }
 

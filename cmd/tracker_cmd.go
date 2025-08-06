@@ -89,7 +89,7 @@ func (c trackerCmd) fetch(args []string) error {
 		c.log.Error(err.Error())
 		return err
 	}
-	c.log.Info("loggged to tracker", "status", rt.Status)
+	c.log.Info("logged to tracker", "status", rt.Status)
 
 	// concurrent fetching
 
@@ -158,13 +158,14 @@ func (c trackerCmd) fetch(args []string) error {
 				err = db.SaveEffort(topic_id, topicHtml, startEra)
 				if err != nil {
 					results <- result{topic_id, err}
-					c.log.Error("fetching error", "err", err)
+					c.log.Error("save topic error", "err", err)
 					return err
 				}
 
 				results <- result{topic_id, nil}
 				c.log.Info("fetched successfully", "topic_id", topic_id)
 
+				// [ ] todo: fix dont sleep when 1 job
 				sleepFor := torrnado.AccidentalPeriodSec(3, 11)
 				c.log.Info("sleeping for", "sec", sleepFor)
 				time.Sleep(sleepFor)

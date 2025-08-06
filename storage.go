@@ -24,6 +24,7 @@ type Storage interface {
 
 type LiteStorage struct {
 	db     *sql.DB
+	path string
 	Status string
 }
 
@@ -37,7 +38,7 @@ func MustHaveStorage(path string) (*LiteStorage, error) {
 		return nil, Operror(op, err)
 	}
 
-	return &LiteStorage{db, "ready"}, nil
+	return &LiteStorage{db, path, "ready"}, nil
 }
 
 func (s *LiteStorage) Migrate(log *slog.Logger) error {
@@ -105,7 +106,15 @@ func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
 	log.Info("started cleaning")
 
 	rows_affected, err := s.execSQL(`
-		delete from topics where fetched_at < (select max(fetched_at) as last_fetched_at from topics group by topic_id order by last_fetched_at limit 1);
+		delete from topics 
+		where fetched_at < (
+			select max(fetched_at) as last_fetched_at 
+			from topics 
+			group by topic_id 
+			having last_fetched_at is not null 
+			order by last_fetched_at limit 1
+		) 
+			or fetched_at is null;
 	`)
 
 	return int(rows_affected), err 
@@ -113,8 +122,8 @@ func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
 
 func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
 	stmt, err := s.db.Prepare(`
-		update 
-			topics set html_source = $1, , html_len = $2, fetched_at = $3, time_taken_ms = $4
+		update topics 
+			set html_source = $1, html_len = $2, fetched_at = $3, time_taken_ms = $4
 		where 
 			topic_id = $5 and fetched_at is null;
 	`)

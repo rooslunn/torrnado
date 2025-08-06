@@ -15,8 +15,8 @@ type dbCmd struct {
 
 const (
 	SUBCMD_EXPORT  = "export"
-	SUBCMD_CLEAN   = "clean"
-	SUBCMD_MIGRATE = "migrate"
+	SUBCMD_CLEAN   = "organize"
+	SUBCMD_MIGRATE = "invent"
 )
 
 func (c dbCmd) execute(args []string) error {
@@ -44,6 +44,23 @@ func exportTricks() {
 
 func (c dbCmd) migrate() error {
 	c.log.Info("executing migrate sub command")
+
+	// remove prev file
+	dbpath, err := getDbPath()
+	if err != nil {
+		return err
+	}
+
+	c.log.Info("expel prev db file")
+	err = os.Remove(dbpath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			c.log.Info("file doen't live", "path", dbpath)
+		} else {
+			return err
+		}
+	}
+
 
 	db, err := joinDb()
 	if err != nil {
@@ -110,13 +127,13 @@ func (c *dbCmd) export(args []string) error {
 	filename := fmt.Sprintf("%d.html", topic_id)
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("Error creating file: %v\n", err)
+		return fmt.Errorf("error creating file: %v", err)
 	}
 	defer file.Close()
 
 	_, err = file.WriteString(html)
 	if err != nil {
-		return fmt.Errorf("error writing to file: %v\n", err)
+		return fmt.Errorf("error writing to file: %v", err)
 	}
 	c.log.Info("deliverd html to file", "file", filename)
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log/slog"
+	// "log/slog"
 	"time"
 )
 
@@ -25,9 +25,10 @@ type parsed struct {
 // https://rutracker.org/forum/viewtopic.php?t=5352911 война против всех
 // https://rutracker.org/forum/viewtopic.php?t=6238349 пройщенный
 // https://rutracker.org/forum/viewtopic.php?t=5527258 шестизарядник
+// https://rutracker.org/forum/viewtopic.php?t=3201064 альмодовар (сборник фильмов)
 
-type parserCmd struct {}
+// type parserCmd struct {}
 
-func (c parserCmd) execute(log *slog.Logger, args []string) error {
-	return nil
-}
+// func (c parserCmd) execute(log *slog.Logger, args []string) error {
+// 	return nil
+// }
