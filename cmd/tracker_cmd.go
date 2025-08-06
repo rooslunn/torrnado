@@ -25,8 +25,11 @@ type trackerCmd struct{
 }
 
 const (
-	OUT_PATH           = ""
 	DEFAULT_BATCH_SIZE = 100
+)
+
+const (
+	SUBCMD_FETCH = "fetch"
 )
 
 func (c trackerCmd) execute(args []string) error {
@@ -38,7 +41,7 @@ func (c trackerCmd) execute(args []string) error {
 		return ErrDefectiveArgs
 	}
 
-	if isSubcommand(args[0], "fetch") {
+	if isSubcommand(args[0], SUBCMD_FETCH) {
 		return c.fetch(args[1:])
 	}
 

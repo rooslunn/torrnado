@@ -13,7 +13,7 @@
             "program": "${workspaceFolder}/cmd",
             "envFile": "${workspaceFolder}/.env",
             "env": {},
-            "args": ["db:migrate"],
+            "args": ["ping"],
         }
     ]
 }

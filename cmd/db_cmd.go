@@ -9,12 +9,17 @@ import (
 	"github.com/rooslunn/torrnado"
 )
 
-type dbCmd struct{
+type dbCmd struct {
 	log *slog.Logger
 }
 
-func (c dbCmd) execute(args []string) error {
+const (
+	SUBCMD_EXPORT  = "export"
+	SUBCMD_CLEAN   = "clean"
+	SUBCMD_MIGRATE = "migrate"
+)
 
+func (c dbCmd) execute(args []string) error {
 	c.log.Info("executing db command", "args", args)
 
 	if len(args) == 0 {
@@ -22,11 +27,11 @@ func (c dbCmd) execute(args []string) error {
 		return ErrDefectiveArgs
 	}
 
-	if isSubcommand(args[0], "clean") {
+	if isSubcommand(args[0], SUBCMD_CLEAN) {
 		return c.clean(args[1:])
-	} else if isSubcommand(args[0], "export") {
+	} else if isSubcommand(args[0], SUBCMD_EXPORT) {
 		return c.export(args[1:])
-	} else if isSubcommand(args[0], "migrate") {
+	} else if isSubcommand(args[0], SUBCMD_MIGRATE) {
 		return c.migrate()
 	}
 
@@ -38,7 +43,6 @@ func exportTricks() {
 }
 
 func (c dbCmd) migrate() error {
-
 	c.log.Info("executing migrate sub command")
 
 	db, err := joinDb()
@@ -53,7 +57,7 @@ func (c dbCmd) migrate() error {
 	}
 	c.log.Info("DB migrated")
 
-	return nil	
+	return nil
 }
 
 func getDbPath() (string, error) {
@@ -64,8 +68,7 @@ func getDbPath() (string, error) {
 	return dbpath, nil
 }
 
-func joinDb() (*torrnado.LiteStorage, error)  {
-
+func joinDb() (*torrnado.LiteStorage, error) {
 	dbpath, err := getDbPath()
 	if err != nil {
 		return nil, fmt.Errorf(torrnado.ErrEnvNotSet, err)
@@ -80,7 +83,6 @@ func joinDb() (*torrnado.LiteStorage, error)  {
 }
 
 func (c *dbCmd) export(args []string) error {
-
 	c.log.Info("executing export sub command", "args", args)
 
 	if len(args) == 0 {
@@ -122,7 +124,6 @@ func (c *dbCmd) export(args []string) error {
 }
 
 func (c dbCmd) clean(args []string) error {
-
 	c.log.Info("executing clean sub command", "args", args)
 
 	db, err := joinDb()

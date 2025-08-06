@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/rooslunn/torrnado"
 )
 
 type Command interface {
@@ -18,6 +20,13 @@ var (
 	ErrDefectiveArgs = errors.New("not enough args")
 	ErrUnknownCommand = errors.New("exotic commmand")
 	ErrUnknownSubCommand = errors.New("unplanned sub commmand")
+)
+
+const (
+	CMD_PING = "ping"
+	CMD_DB = "db:"
+	CMD_TRACKER = "tracker:"
+	CMD_MOVIEDB = "moviedb:"
 )
 
 func main() {
@@ -32,9 +41,13 @@ func main() {
 
 	commandBrand := os.Args[1]
 
-	if strings.HasPrefix(commandBrand, "tracker:") {
+	if commandBrand == "ping" {
+		os.Exit(pingPong(log))
+	}
+
+	if strings.HasPrefix(commandBrand, CMD_TRACKER) {
 		command = trackerCmd{log}
-	} else if strings.HasPrefix(commandBrand, "db:") {
+	} else if strings.HasPrefix(commandBrand, CMD_DB) {
 		command = dbCmd{log}
 	} else {
 		fmt.Fprintln(os.Stderr, ErrUnknownCommand)
@@ -45,6 +58,28 @@ func main() {
 		command,
 		os.Args[1:],
 	)
+}
+
+func pingPong(log *slog.Logger) int {
+	log.Info("checking config...")
+	cfg, err := torrnado.MustConfig()
+	if err != nil {
+		log.Error(err.Error())	
+		return 1
+	}
+	for k, v := range cfg.Env {
+		log.Info("config", k, v)
+	}
+
+	log.Info("checking db contact...")
+	_, err = joinDb()
+	if err != nil {
+		log.Error(err.Error())
+		return 1
+	}
+	log.Info("db is available")
+
+	return 0
 }
 
 func setupSnitch(out io.Writer) *slog.Logger {
