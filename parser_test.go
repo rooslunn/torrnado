@@ -1,0 +1,65 @@
+package torrnado
+
+import (
+	"log/slog"
+	"os"
+	"reflect"
+	"testing"
+)
+
+func Test_parser_Parse(t *testing.T) {
+	discardLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelError,
+	}))
+
+	html_source_5104420, err := os.ReadFile("5104420.html")
+	if err != nil {
+		t.Fatalf("error reading html_source: %v", err)
+	}
+
+	want_5104420 := parsed_html{
+		"title":       "Голгофа / Calvary",
+		"video":       "720x304 (2.37:1), 24 fps, XviD build 65 ~1744 kbps avg, 0.33 bit/pixel",
+		"audio.1":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg mvo",
+		"audio.2":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg dvo",
+		"audio.3":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg eng",
+		"format":      "AVI",
+		"quality":     "BDRip (источник",
+		"subtitles":   "Русские (2 вида), английские, украинские (внешние srt*)",
+		"translation": "Профессиональный (многоголосый, закадровый) BD RUS @ Профессиональный (двухголосый, закадровый) П. Гланц, И. Королева @ Оригинальная звуковая дорожка",
+		"likes":       "16,732 раза",
+		"author":      "kingsize87",
+		"magnet_link": "magnet:?xt=urn:btih:3C81C28DC5341AF878592456C6CD197E03A76E68&tr=http%3A%2F%2Fbt3.t-ru.org%2Fann%3Fmagnet",
+	}
+
+	type fields struct {
+		log *slog.Logger
+	}
+	type args struct {
+		html_source string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    parsed_html
+		wantErr bool
+	}{
+		{"success", fields{discardLogger}, args{string(html_source_5104420)}, want_5104420, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &parser{
+				log: tt.fields.log,
+			}
+			got, err := p.Parse(tt.args.html_source)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parser.Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parser.Parse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

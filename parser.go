@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 type parsed struct {
@@ -51,12 +52,42 @@ var (
 	ErrNoBodyInSource = errors.New("can't point out post_body in source")
 )
 
+type fieldCareFunc = func(node *html.Node) (key string, value string)
+
+const SEP_DOG = " @ "
+
+var translationCareFunc = func(node *html.Node) (key string, value string) {
+	i := 1
+	crashStop := 6
+
+	translations := make([]string, 0)
+
+	currNode := node.NextSibling
+
+	for (i < crashStop) && (currNode.Data != "span") {
+		if currNode.Type == html.TextNode {
+			trans := freeFromDebris(currNode.Data)
+			translations = append(translations, trans)
+		}
+		currNode = currNode.NextSibling
+		i++
+	}
+
+	return "translation", strings.Join(translations, SEP_DOG) 
+}
+
 var (
 	topicFieldsTranslation = map[string]string{
-		"Формат": "format", "Качество":"quality", "Видео:":"video", "Перевод:":"",
+		"Формат": "format", "Качество":"quality", "Видео":"video", "Перевод:":"",
 		"Аудио":"audio", "Аудио #1":"audio.1", "Аудио #2":"audio.2", "Аудио #3":"audio.3",
+		"Субтитры": "subtitles", 
 	}
 	topicFieldsIndex = MapKeys(topicFieldsTranslation)
+
+	topicSpecialCareFields = map[string]fieldCareFunc{
+		"Перевод": translationCareFunc,
+	}
+	topicSpecialCareFieldsIndex = MapKeys(topicSpecialCareFields)
 )
 
 func (p *parser) anatomize(html_source string) (parsed_html, error) {
@@ -82,15 +113,31 @@ func (p *parser) anatomize(html_source string) (parsed_html, error) {
 	details.Each(func(i int, e *goquery.Selection) {
 		field := freeFromDebris(e.Text())
 		if slices.Contains(topicFieldsIndex, field) {
-			topic[topicFieldsTranslation[field]] = strings.Trim(e.Nodes[0].NextSibling.Data, ": ")
+			topic[topicFieldsTranslation[field]] = freeFromDebris(e.Nodes[0].NextSibling.Data)
 			return
 		}
+		if slices.Contains(topicSpecialCareFieldsIndex, field) {
+			k, v := topicSpecialCareFields[field](e.Nodes[0])
+			topic[k] = v
+		}
 	})
+
+	details = doc.Find("table#t-tor-stats tbody tr > td b")
+	if len(details.Nodes) > 2 {
+		topic["likes"] = details.Nodes[2].FirstChild.Data
+	}
+
+	details = doc.Find("p.nick.nick-author")
+	topic["author"] = details.First().Text()
+
+	// [ ] todo: check validity
+	details = doc.Find("a.magnet-link")
+	topic["magnet_link"] = details.First().AttrOr("href", "")
 
 	return topic, nil
 }
 
-const FIELD_DEBRIS = " :"
+const FIELD_DEBRIS = " :\n+"
 
 func freeFromDebris(s string) string {
 	return strings.Trim(s, FIELD_DEBRIS)
