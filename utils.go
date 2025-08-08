@@ -43,6 +43,7 @@ func ISaidNow() string {
 }
 
 func ConjureTopicPlan(start, count int) TopicPlan {
+
 	plan := make(TopicPlan, count)
 	for i := range count {
 		plan[start+i] = ISaidNow()

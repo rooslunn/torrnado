@@ -25,8 +25,38 @@ type Storage interface {
 
 type LiteStorage struct {
 	db     *sql.DB
-	path string
+	path   string
 	Status string
+}
+
+func (s *LiteStorage) AllFetchedRange() (TopicPlan, error) {
+	plan := make(TopicPlan)
+
+	query := `
+		select distinct topic_id 
+		from topics 
+		where 
+			fetched_at is not null and html_source is not null;
+	`;
+	var (
+		topic_id int
+	)
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return plan, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&topic_id)
+		if err != nil {
+			return plan, err
+		}
+		plan[topic_id] = ISaidNow()
+	}
+
+	return plan, rows.Err()
 }
 
 const DB_OPTIONS = "?cache=shared"
@@ -47,7 +77,7 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 	const op = "storage.migrate"
 
 	var ddl []string
-	
+
 	// drops
 	ddl = append(ddl, `
 		drop view if exists topics_debug;
@@ -118,7 +148,7 @@ func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
 			or fetched_at is null;
 	`)
 
-	return int(rows_affected), err 
+	return int(rows_affected), err
 }
 
 func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) error {
@@ -157,12 +187,15 @@ func (s *LiteStorage) execSQL(sql string) (changes int64, err error) {
 	return rows_affected, err
 }
 
-func (s *LiteStorage) retrieveField(sql string) (string, error) {
+func (s *LiteStorage) retrieveField(query string, params ...any) (string, error) {
 	var value string
-	err := s.db.QueryRow(sql).Scan(&value)
-	if err != nil {
-		return "", err
+
+	err := s.db.QueryRow(query, params...).Scan(&value)
+
+	if errors.Is(sql.ErrNoRows, err) {
+		return "", ErrSelectNoRows
 	}
+
 	return value, nil
 }
 
@@ -171,17 +204,13 @@ var (
 )
 
 func (s *LiteStorage) GetHTML(topic_id int) (string, error) {
-	var htmlSource string
-	err := s.db.QueryRow(`
+	query := `
 		SELECT html_source 
 		FROM topics 
 		WHERE topic_id = ? and fetched_at is not null 
 		ORDER BY fetched_at desc limit 1
-	`, topic_id).Scan(&htmlSource)
-	if errors.Is(sql.ErrNoRows, err) {
-		return "", ErrSelectNoRows
-	}
-	return htmlSource, nil
+	`
+	return s.retrieveField(query, fmt.Sprint(topic_id))
 }
 
 func (s *LiteStorage) SaveFetchPlan(plan TopicPlan) error {

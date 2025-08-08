@@ -14,7 +14,8 @@
             "envFile": "${workspaceFolder}/.env",
             "env": {},
             // "args": ["ping"],
-            "args": ["parser:parse", "5104420"],
+            // "args": ["parser:parse", "5104420"],
+            "args": ["parser:parse"],
             // "args": ["tracker:fetch", "5104420"],
         }
     ]

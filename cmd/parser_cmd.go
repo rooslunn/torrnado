@@ -16,7 +16,7 @@ import (
 
 
 type parsed struct {
-	topic_id topicId
+	topic_id int
 	title string
 	quality string
 	format string
@@ -30,14 +30,14 @@ type parsed struct {
 	video []string
 }
 
-type topic map[string]string
+type parsed_html map[string]string
 
-// https://rutracker.org/forum/viewtopic.php?t=4624488 семь психопатов
-// https://rutracker.org/forum/viewtopic.php?t=5104420 голгофа
-// https://rutracker.org/forum/viewtopic.php?t=5352911 война против всех
-// https://rutracker.org/forum/viewtopic.php?t=6238349 пройщенный
-// https://rutracker.org/forum/viewtopic.php?t=5527258 шестизарядник
-// https://rutracker.org/forum/viewtopic.php?t=3201064 альмодовар (сборник фильмов)
+// [ ] https://rutracker.org/forum/viewtopic.php?t=5104420 голгофа
+// [ ] https://rutracker.org/forum/viewtopic.php?t=4624488 семь психопатов
+// [ ] https://rutracker.org/forum/viewtopic.php?t=5352911 война против всех
+// [ ] https://rutracker.org/forum/viewtopic.php?t=6238349 пройщенный
+// [ ] https://rutracker.org/forum/viewtopic.php?t=5527258 шестизарядник
+// [ ] https://rutracker.org/forum/viewtopic.php?t=3201064 альмодовар (сборник фильмов)
 
 const (
 	SUBCMD_PARSE = "parse"
@@ -46,8 +46,6 @@ const (
 type parserCmd struct {
 	log *slog.Logger
 }
-
-type topicId uint32
 
 func (c parserCmd) execute(args []string) error {
 	c.log.Info("executing parser command")
@@ -65,29 +63,67 @@ func (c parserCmd) execute(args []string) error {
 }
 
 func (c parserCmd) parse(args []string) (error) {
+	const op = "parse.main"
+
+	dbpath, err := getDbPath()
+	if err != nil {
+		c.log.Error("get db path", "op", op, "err", err)
+		return err
+	}
+
+	stash, err := torrnado.MustHaveStorage(dbpath)
+	if err != nil {
+		c.log.Error("connect to db", "op", op, "err", err)
+		return  err
+	}
+
+	// topics range
+	var topics torrnado.TopicPlan	
 
 	if len(args) == 1 {
-		topic_id, err := translateToTopicId(args[0])
+		from_topic_id, err := translateToTopicId(args[0])
 		if err != nil {
 			return err
 		}
-		c.log.Info("parse specific topic", "topic_id", topic_id)
-		parsed, err := c.anatomize(topic_id)
+		topics = torrnado.ConjureTopicPlan(from_topic_id, 1)
+	} else {
+		topics, err = stash.AllFetchedRange()
 		if err != nil {
 			return err
 		}
-		c.log.Info("parsing done", "parsed", parsed)
+	}
+
+	topicIndexes := torrnado.MapKeys(topics)
+	c.log.Info("topics range to parse", "from", slices.Min(topicIndexes), "to", slices.Max(topicIndexes))
+
+	for topic_id := range topics {
+
+		c.log.Info("fetch html_source", "op", op, "topic_id", topic_id)
+		html_source, err := stash.GetHTML(topic_id)
+		if err != nil {
+			c.log.Error("fetch html_source", "op", op, "topic_id", topic_id, "err", err)
+			return  err
+		}
+
+		c.log.Info("anatomize html_source", "op", op, "topic_id", topic_id)
+		parsed, err := c.anatomize(html_source)
+		if err != nil {
+			c.log.Error("anatomize html_source", "op", op, "topic_id", topic_id, "err", err)
+			return err
+		}
+
+		c.log.Info("parsing done", "topic_id", topic_id, "title", parsed["title"])
 	}
 
 	return nil
 }
 
-func translateToTopicId(value string) (topicId, error) {
+func translateToTopicId(value string) (int, error) {
 	topic_id, err := strconv.Atoi(value)
 	if err != nil {
 		return 0, err
 	}
-	return topicId(topic_id), nil
+	return topic_id, nil
 }
 
 func (c parserCmd) expoTrick() {
@@ -109,28 +145,10 @@ var (
 
 )
 
-func (c parserCmd) anatomize(topic_id topicId) (topic, error) {
+func (c parserCmd) anatomize(html_source string) (parsed_html, error) {
 	const op = "parser.anatomize"
 
-	topic := make(topic, 14)
-
-	dbpath, err := getDbPath()
-	if err != nil {
-		c.log.Error("get db path", "op", op, "err", err)
-		return topic, err
-	}
-
-	stash, err := torrnado.MustHaveStorage(dbpath)
-	if err != nil {
-		c.log.Error("connect to db", "op", op, "err", err)
-		return topic, err
-	}
-
-	html_source, err := stash.GetHTML(int(topic_id))
-	if err != nil {
-		c.log.Error("fetch html_source", "op", op, "topic_id", topic_id, "err", err)
-		return topic, err
-	}
+	topic := make(parsed_html, 14)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html_source))
 	if err != nil {
