@@ -27,6 +27,7 @@ const (
 	CMD_DB = "db:"
 	CMD_TRACKER = "tracker:"
 	CMD_MOVIEDB = "moviedb:"
+	CMD_PARSER = "parser:"
 )
 
 func main() {
@@ -49,6 +50,8 @@ func main() {
 		command = trackerCmd{log}
 	} else if strings.HasPrefix(commandBrand, CMD_DB) {
 		command = dbCmd{log}
+	} else if strings.HasPrefix(commandBrand, CMD_PARSER) {
+		command = parserCmd{log}
 	} else {
 		fmt.Fprintln(os.Stderr, ErrUnknownCommand)
 		os.Exit(1)
@@ -97,7 +100,7 @@ func pingPong(log *slog.Logger) int {
 }
 
 func setupSnitch(out io.Writer) *slog.Logger {
-	return slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	return slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: slog.LevelDebug}))
 }
 
 func goodbyeIfFuckedUp(command Command, args []string) {

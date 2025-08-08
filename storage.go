@@ -2,6 +2,7 @@ package torrnado
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -165,13 +166,20 @@ func (s *LiteStorage) retrieveField(sql string) (string, error) {
 	return value, nil
 }
 
+var (
+	ErrSelectNoRows = errors.New("select returned no rows")
+)
+
 func (s *LiteStorage) GetHTML(topic_id int) (string, error) {
 	var htmlSource string
 	err := s.db.QueryRow(`
-		SELECT html_source FROM topics WHERE topic_id = ? ORDER BY DATE(created_at) desc limit 1
+		SELECT html_source 
+		FROM topics 
+		WHERE topic_id = ? and fetched_at is not null 
+		ORDER BY fetched_at desc limit 1
 	`, topic_id).Scan(&htmlSource)
-	if err != nil {
-		return "", err
+	if errors.Is(sql.ErrNoRows, err) {
+		return "", ErrSelectNoRows
 	}
 	return htmlSource, nil
 }

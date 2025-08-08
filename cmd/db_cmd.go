@@ -60,6 +60,7 @@ func (c dbCmd) migrate() error {
 			return err
 		}
 	}
+	c.log.Info("prev db file expelled")
 
 
 	db, err := joinDb()
@@ -158,5 +159,5 @@ func (c dbCmd) clean(args []string) error {
 }
 
 func (c dbCmd) expoTrick() {
-	fmt.Println("Usage: torrnado export <topic_id> <filepath>")
+	fmt.Println("Usage: torrnado db:<subcommand>")
 }

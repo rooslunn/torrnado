@@ -25,7 +25,7 @@ type trackerCmd struct{
 }
 
 const (
-	DEFAULT_BATCH_SIZE = 100
+	DEFAULT_BATCH_SIZE = 1 
 )
 
 const (
@@ -34,7 +34,7 @@ const (
 
 func (c trackerCmd) execute(args []string) error {
 
-	c.log.Info("executing fetch command", "args", args)
+	c.log.Info("executing tracker command", "args", args)
 
 	if len(args) == 0 {
 		c.expoTrick()
@@ -200,5 +200,5 @@ func (c trackerCmd) fetch(args []string) error {
 }
 
 func (c trackerCmd) expoTrick() {
-	fmt.Println("Usage: torrnado fetch <from topic_id> [count]")
+	fmt.Println("Usage: torrnado tracker:<subcommand>")
 }

@@ -13,7 +13,9 @@
             "program": "${workspaceFolder}/cmd",
             "envFile": "${workspaceFolder}/.env",
             "env": {},
-            "args": ["ping"],
+            // "args": ["ping"],
+            "args": ["parser:parse", "5104420"],
+            // "args": ["tracker:fetch", "5104420"],
         }
     ]
 }

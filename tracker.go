@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	iconv "github.com/djimenez/iconv-go"
 )
 
 // type authCoookes []*http.Cookie
@@ -130,14 +131,20 @@ func (rt *RuTracker) FetchTopic(url_fmt string, topic_id int) (string, error) {
 		return "", fmt.Errorf("%s: bad status code: %s; url=%s", op, resp.Status, url)
 	}
 
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("%s: error reading response body: %v", op, err)
 	}
-
 	bodyString := string(bodyBytes)
 
-	return bodyString, nil
+	bodyStringUtf, err := iconv.ConvertString(bodyString, "windows-1251", "utf-8")
+	if err != nil {
+		return "", fmt.Errorf("%s: can't convert body from win1251 to utf8: %v", op, err)
+	}
+
+
+	return bodyStringUtf, nil
 }
 
 func initCookieJar(rt *RuTracker) (*cookiejar.Jar, error) {

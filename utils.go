@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 func Operror(op string, err error) error {
@@ -59,4 +61,18 @@ func PlotDeal[T, M any](s []T, f func(T) M) []M {
 		result[i] = f(v)
 	}
 	return result
+}
+
+func DecodeWin1251(s string) string {
+	dec := charmap.Windows1251.NewDecoder()
+	out, _ := dec.Bytes([]byte(s))
+	return string(out)
+}
+
+func MapKeys[K comparable, V any](m map[K]V) []K {
+	keys := make([]K, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }
