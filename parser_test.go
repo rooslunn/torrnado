@@ -1,35 +1,30 @@
 package torrnado
 
 import (
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
+
+const PARSE_TEST_DATA_FOLDER = "/home/roos/utv/tools/torrnado/testdata/parse"
 
 func Test_parser_Parse(t *testing.T) {
 	discardLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelError,
 	}))
 
-	html_source_5104420, err := os.ReadFile("5104420.html")
+	pattern := "*.html" 
+	matches, err := filepath.Glob(filepath.Join(PARSE_TEST_DATA_FOLDER, pattern))
 	if err != nil {
-		t.Fatalf("error reading html_source: %v", err)
+		t.Fatalf("Error globbing files: %v", err)
 	}
 
-	want_5104420 := parsed_html{
-		"title":       "Голгофа / Calvary",
-		"video":       "720x304 (2.37:1), 24 fps, XviD build 65 ~1744 kbps avg, 0.33 bit/pixel",
-		"audio.1":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg mvo",
-		"audio.2":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg dvo",
-		"audio.3":     "48 kHz, AC3 Dolby Digital, 3/2 (L,C,R,l,r) + LFE ch, ~448 kbps avg eng",
-		"format":      "AVI",
-		"quality":     "BDRip (источник",
-		"subtitles":   "Русские (2 вида), английские, украинские (внешние srt*)",
-		"translation": "Профессиональный (многоголосый, закадровый) BD RUS @ Профессиональный (двухголосый, закадровый) П. Гланц, И. Королева @ Оригинальная звуковая дорожка",
-		"likes":       "16,732 раза",
-		"author":      "kingsize87",
-		"magnet_link": "magnet:?xt=urn:btih:3C81C28DC5341AF878592456C6CD197E03A76E68&tr=http%3A%2F%2Fbt3.t-ru.org%2Fann%3Fmagnet",
+	if len(matches) == 0 {
+		t.Fatalf("No files found matching the pattern")
 	}
 
 	type fields struct {
@@ -38,15 +33,44 @@ func Test_parser_Parse(t *testing.T) {
 	type args struct {
 		html_source string
 	}
-	tests := []struct {
+	type test struct {
 		name    string
 		fields  fields
 		args    args
 		want    parsed_html
 		wantErr bool
-	}{
-		{"success", fields{discardLogger}, args{string(html_source_5104420)}, want_5104420, false},
 	}
+	tests := []test{}
+
+	for _, match := range matches {
+
+		html_source_file := match
+		want_json_file := filepath.Join(
+			PARSE_TEST_DATA_FOLDER,
+			fmt.Sprintf("%s.json", filepath.Base(html_source_file)),
+		)
+
+		html_source, err := os.ReadFile(html_source_file)
+		if err != nil {
+			t.Fatalf("error reading html_source: %v", err)
+		}
+
+		want_json, err := os.ReadFile(want_json_file)
+		if err != nil {
+			t.Fatalf("error reading wanted json: %v", err)
+		}
+
+		var want parsed_html
+		err = json.Unmarshal(want_json, &want)
+		if err != nil {
+			t.Fatalf("error unmarshal wanted json: %v", err)
+		}
+
+		tests = append(tests, 
+			test{"success", fields{discardLogger}, args{string(html_source)}, want, false},
+		)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &parser{
