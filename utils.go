@@ -43,7 +43,6 @@ func ISaidNow() string {
 }
 
 func ConjureTopicPlan(start, count int) TopicPlan {
-
 	plan := make(TopicPlan, count)
 	for i := range count {
 		plan[start+i] = ISaidNow()
@@ -76,4 +75,25 @@ func MapKeys[K comparable, V any](m map[K]V) []K {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func IsSlice(v any) bool {
+	switch v.(type) {
+	case []any:
+		return true
+	default:
+		return false
+	}
+}
+
+func ConvertToStringSlice(anySlice []any) []string {
+	var result []string
+
+	for _, val := range anySlice {
+		if str, ok := val.(string); ok {
+			result = append(result, str)
+		}
+	}
+
+	return result
 }

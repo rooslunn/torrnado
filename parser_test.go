@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
@@ -17,7 +16,7 @@ func Test_parser_Parse(t *testing.T) {
 		Level: slog.LevelError,
 	}))
 
-	pattern := "*.html" 
+	pattern := "*.html"
 	matches, err := filepath.Glob(filepath.Join(PARSE_TEST_DATA_FOLDER, pattern))
 	if err != nil {
 		t.Fatalf("Error globbing files: %v", err)
@@ -66,8 +65,12 @@ func Test_parser_Parse(t *testing.T) {
 			t.Fatalf("error unmarshal wanted json: %v", err)
 		}
 
-		tests = append(tests, 
-			test{"success", fields{discardLogger}, args{string(html_source)}, want, false},
+		tests = append(tests,
+			test{
+				fmt.Sprintf("success: %s", filepath.Base(match)), 
+				fields{discardLogger}, 
+				args{string(html_source)}, want, false,
+			},
 		)
 	}
 
@@ -81,8 +84,20 @@ func Test_parser_Parse(t *testing.T) {
 				t.Errorf("parser.Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parser.Parse() = %v, want %v", got, tt.want)
+			for k := range tt.want {
+				if IsSlice(tt.want[k]) {
+					want_string_slice := ConvertToStringSlice(tt.want[k].([]any))
+					got_string_slice := got[k].([]string)
+					for kk, v := range want_string_slice {
+						if v != got_string_slice[kk] {
+							t.Errorf("want for '%d': %v, got: %v", kk, v, got_string_slice[kk])
+						}
+					}
+					continue
+				}
+				if tt.want[k] != got[k] {
+					t.Errorf("want for '%s': %v, got: %v", k, tt.want[k], got[k])
+				}
 			}
 		})
 	}

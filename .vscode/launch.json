@@ -15,7 +15,8 @@
             "env": {},
             // "args": ["ping"],
             // "args": ["parser:parse", "5104420"],
-            "args": ["parser:parse"],
+            "args": ["parser:parse", "4167286"],
+            // "args": ["parser:parse"],
             // "args": ["tracker:fetch", "5104420"],
         }
     ]

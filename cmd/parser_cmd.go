@@ -89,6 +89,13 @@ func (c parserCmd) parse(args []string) (error) {
 			return err
 		}
 
+		c.log.Info("save parsed to storage", "op", op, "topic_id", topic_id)
+		err = stash.SaveParsed(topic_id, parsed)
+		if err != nil {
+			c.log.Error("save parsed to storage", "op", op, "topic_id", topic_id, "err", err)
+			return err
+		}
+
 		c.log.Info("parsing done", "topic_id", topic_id, "title", parsed["title"])
 	}
 

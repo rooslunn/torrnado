@@ -2,6 +2,7 @@ package torrnado
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -79,14 +80,26 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 	var ddl []string
 
 	// drops
-	ddl = append(ddl, `
-		drop view if exists topics_debug;
-		drop table if exists topics;
-	`)
+	// ddl = append(ddl, `
+	// 	drop view if exists topics_debug;
+	// 	drop table if exists parsed;
+	// 	drop table if exists topics;
+	// `)
+	ddl = append(ddl, "drop view if exists topics_debug;")
+	ddl = append(ddl, "drop table if exists topics;")
+	ddl = append(ddl, "drop table if exists parsed;")
 
 	// tables
 	ddl = append(ddl, `
-		create table if not exists topics (
+		create table parsed (
+			id integer primary key,
+			topic_id integer not null,
+			gomap_json text,
+			parsed_at text
+		);
+	`)
+	ddl = append(ddl,` 
+		create table topics (
 			id integer primary key,
 			topic_id integer not null,
 			html_source text,
@@ -95,12 +108,6 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 			created_at text,
 			fetched_at text 
 		);
-	`)
-
-	// indexes
-	ddl = append(ddl, `
-		create index if not exists idx_topic_id on topics(topic_id);
-		create index if not exists idx_html_len on topics(html_len);
 	`)
 
 	// views
@@ -112,8 +119,18 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 		from topics;
 	`)
 
+	// indexes
+	ddl = append(ddl, "create index idx_parsed_topic_id on parsed(topic_id);")
+	ddl = append(ddl, "create index idx_topics_topic_id on topics(topic_id);")
+	ddl = append(ddl, "create index idx_topics_html_len on topics(html_len);")
+
 	var stmt *sql.Stmt
-	var err error
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
 
 	for _, ddl_sql := range ddl {
 		stmt, err = s.db.Prepare(ddl_sql)
@@ -124,12 +141,19 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 		if err != nil {
 			return Operror(op, err)
 		}
-		log.Info("shooting", "ddl", ddl_sql[:32])
+
+		log.Info("shooting", "ddl", ddl_sql[:16])
 	}
 	defer stmt.Close()
 
-	return nil
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 
+	log.Info("succesfully invented")
+
+	return nil
 }
 
 func (s *LiteStorage) Hygienic(log *slog.Logger) (int, error) {
@@ -166,6 +190,27 @@ func (s *LiteStorage) SaveEffort(topic_id int, html string, timeLog time.Time) e
 	time_taken := time.Since(timeLog).Milliseconds()
 
 	_, err = stmt.Exec(html, len(html), ISaidNow(), time_taken, topic_id)
+
+	return err
+}
+
+func (s *LiteStorage) SaveParsed(topic_id int, parsed parsed_html) error {
+	// [ ] todo: w/o indent
+	jsonBytes, err := json.Marshal(parsed)
+	if err != nil {
+		return err
+	}
+
+	stmt, err := s.db.Prepare(`
+		insert into parsed (topic_id, gomap_json, parsed_at) 
+		values ($1, $2, $3)
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(topic_id, string(jsonBytes), ISaidNow())
 
 	return err
 }

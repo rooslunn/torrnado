@@ -45,24 +45,6 @@ func exportTricks() {
 func (c dbCmd) migrate() error {
 	c.log.Info("executing migrate sub command")
 
-	// remove prev file
-	dbpath, err := getDbPath()
-	if err != nil {
-		return err
-	}
-
-	c.log.Info("expel prev db file")
-	err = os.Remove(dbpath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			c.log.Info("file doen't live", "path", dbpath)
-		} else {
-			return err
-		}
-	}
-	c.log.Info("prev db file expelled")
-
-
 	db, err := joinDb()
 	if err != nil {
 		return err

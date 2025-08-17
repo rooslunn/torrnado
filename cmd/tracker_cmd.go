@@ -144,7 +144,8 @@ func (c trackerCmd) fetch(args []string) error {
 
 				if errors.Is(err, torrnado.ErrClaudfareWarden) {
 					results <- result{topic_id, err}
-					c.log.Warn("warden watching. time to sleep")
+					c.log.Warn("warden watching. time to comprehend")
+					// [ ] todo: rotate proxy and UA
 					time.Sleep(torrnado.AccidentalPeriodSec(13, 23))
 					return nil
 				}
@@ -165,7 +166,7 @@ func (c trackerCmd) fetch(args []string) error {
 				results <- result{topic_id, nil}
 				c.log.Info("fetched successfully", "topic_id", topic_id)
 
-				// [ ] todo: fix dont sleep when 1 job
+				// [ ] todo: fix — dont fall asleep when only 1 job
 				sleepFor := torrnado.AccidentalPeriodSec(3, 11)
 				c.log.Info("sleeping for", "sec", sleepFor)
 				time.Sleep(sleepFor)
