@@ -32,6 +32,8 @@ const (
 	SUBCMD_FETCH = "fetch"
 )
 
+// [ ] todo: param+ 1 2 3 7 5; n..m (n <= m)
+
 func (c trackerCmd) execute(args []string) error {
 
 	c.log.Info("executing tracker command", "args", args)

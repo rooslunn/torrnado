@@ -61,6 +61,10 @@ func (s *LiteStorage) AllFetchedRange() (TopicPlan, error) {
 }
 
 const DB_OPTIONS = "?cache=shared"
+var DP_CONN_PRAGMAS = []string{
+	"pragma journal_mode = wal;",
+	"pragma busy_timeout = 3000;",
+}
 
 func MustHaveStorage(path string) (*LiteStorage, error) {
 	const op = "storage.sqlite.connect"
@@ -70,7 +74,17 @@ func MustHaveStorage(path string) (*LiteStorage, error) {
 		return nil, Operror(op, err)
 	}
 
-	return &LiteStorage{db, path, "ready"}, nil
+	s := &LiteStorage{db, path, "preparing"} 
+
+	for _, p := range DP_CONN_PRAGMAS {
+		_, err := s.execSQL(p)
+		if err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (s *LiteStorage) Migrate(log *slog.Logger) error {
@@ -79,12 +93,7 @@ func (s *LiteStorage) Migrate(log *slog.Logger) error {
 
 	var ddl []string
 
-	// drops
-	// ddl = append(ddl, `
-	// 	drop view if exists topics_debug;
-	// 	drop table if exists parsed;
-	// 	drop table if exists topics;
-	// `)
+
 	ddl = append(ddl, "drop view if exists topics_debug;")
 	ddl = append(ddl, "drop table if exists topics;")
 	ddl = append(ddl, "drop table if exists parsed;")
@@ -237,7 +246,7 @@ func (s *LiteStorage) retrieveField(query string, params ...any) (string, error)
 
 	err := s.db.QueryRow(query, params...).Scan(&value)
 
-	if errors.Is(sql.ErrNoRows, err) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrSelectNoRows
 	}
 

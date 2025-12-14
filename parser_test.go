@@ -11,6 +11,9 @@ import (
 
 const PARSE_TEST_DATA_FOLDER = "/home/roos/utv/tools/torrnado/testdata/parse"
 
+// [x] 5104420, 4167285
+// [ ] 5136783, 6152272, 3050943, 6386016, 4624488, 5352911, 6238349, 5527258, 6030650, 3201064, 6452166, 5584694
+
 func Test_parser_Parse(t *testing.T) {
 	discardLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelError,

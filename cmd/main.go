@@ -30,11 +30,14 @@ const (
 	CMD_PARSER = "parser:"
 )
 
+// [ ] todo: list of cmds
+
 func main() {
 	log := setupSnitch(os.Stdout)
 
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "you forgot command nick (fetch, export, clean)")
+		fmt.Fprintln(os.Stderr, "you forgot command nick")
+		fmt.Fprintln(os.Stderr, "available cmd nick: ping, db, tracker, parser")
 		os.Exit(2)
 	}
 

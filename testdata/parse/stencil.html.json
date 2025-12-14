@@ -1,17 +1,13 @@
-[
-  {
-    "audio": "",
+{
+    "audio": [],
     "category": "",
-    "status": "",
+    "status": "status",
     "likes": "",
     "author": "",
     "magnet_link": "",
     "title": [
       "",
-      "",
-      "",
       ""
     ],
     "genre": ""
-  }
-]
+}

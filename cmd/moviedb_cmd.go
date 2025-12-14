@@ -1,4 +1,4 @@
 package main
 
-type moviedbCmd struct {}
+// type moviedbCmd struct {}
 

@@ -6,34 +6,11 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type parsed struct {
-	topic_id int
-	title string
-	quality string
-	format string
-	created_at time.Time
-	liked int
-	status string // проверено
-	size string // 
-	magnet string
-	torrent_file string
-	audio []string
-	video []string
-}
-
 type parsed_html = map[string]any
-
-// [ ] https://rutracker.org/forum/viewtopic.php?t=5104420 голгофа
-// [ ] https://rutracker.org/forum/viewtopic.php?t=4624488 семь психопатов
-// [ ] https://rutracker.org/forum/viewtopic.php?t=5352911 война против всех
-// [ ] https://rutracker.org/forum/viewtopic.php?t=6238349 пройщенный
-// [ ] https://rutracker.org/forum/viewtopic.php?t=5527258 шестизарядник
-// [ ] https://rutracker.org/forum/viewtopic.php?t=3201064 альмодовар (сборник фильмов)
 
 type parser struct {
 	log *slog.Logger
@@ -63,14 +40,24 @@ func (p *parser) anatomize(html_source string) (parsed_html, error) {
 		return topic, err
 	}
 
+	var details *goquery.Selection
+
+	// [ ] todo: topic now is definitive structure
+
+	// [ ] todo: validate Link using anacrolix/torrent 
+	details = doc.Find("a.magnet-link")
+	topic["magnet_link"] = freeFromDebris(details.First().AttrOr("href", ""))
+
+	// [ ] todo: move to parseDescription()
 	description := doc.Find("head > meta[name=\"description\"]").AttrOr("content", "")
 	topic["description"] = description
 	topic["title"] = extractTitle(description)
 	topic["audio"] = extractAudio(description)
 	topic["category"] = extractCategory(description)
+
 	topic["status"] = "status"
 
-	details := doc.Find("span.post-b")
+	details = doc.Find("span.post-b")
 	details.Each(func(i int, e *goquery.Selection) {
 		field := freeFromDebris(e.Text())
 		if strings.HasPrefix(field, "Жанр"){
@@ -87,9 +74,6 @@ func (p *parser) anatomize(html_source string) (parsed_html, error) {
 	details = doc.Find("p.nick.nick-author")
 	topic["author"] = details.First().Text()
 
-	// [ ] todo: check validity
-	details = doc.Find("a.magnet-link")
-	topic["magnet_link"] = details.First().AttrOr("href", "")
 
 	return topic, nil
 }
